@@ -10,6 +10,20 @@ const wsServer = new webSocketServer({
 
 // I'm maintaining all active connections in this object
 const clients = {};
+const rolls = {
+  1: 0,
+  2: 0,
+  3: 0,
+  4: 0,
+  5: 0,
+  6: 0,
+  7: 0,
+  8: 0,
+  9: 0,
+  10: 0,
+  11: 0,
+  12: 0,
+};
 
 // This code generates unique userid for everyuser.
 const getUniqueID = () => {
@@ -30,16 +44,23 @@ wsServer.on("request", function (request) {
   );
   // You can rewrite this part of the code to accept only the requests from allowed origin
   const connection = request.accept(null, request.origin);
+  connection.sendUTF(JSON.stringify({ type: "roll", rolls }));
   clients[userID] = connection;
   console.log(
     "connected: " + userID + " in " + Object.getOwnPropertyNames(clients)
   );
 
   connection.on("message", (message) => {
-    // console.log("should be sending message");
-    Object.values(clients).forEach((clientConnection) => {
-      clientConnection.sendUTF(message.utf8Data);
-    });
+    console.log("gotta message", message);
+    const _message = JSON.parse(message.utf8Data);
+    if (_message.type === "roll") {
+      const { number } = _message;
+      const currentValue = rolls[number];
+      rolls[number] = currentValue + 1;
+      Object.values(clients).forEach((clientConnection) => {
+        clientConnection.sendUTF(JSON.stringify({ type: "roll", rolls }));
+      });
+    }
   });
 
   connection.on("close", function (reasonCode, description) {
