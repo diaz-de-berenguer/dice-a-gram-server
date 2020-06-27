@@ -61,6 +61,14 @@ wsServer.on("request", function (request) {
         clientConnection.sendUTF(JSON.stringify({ type: "roll", rolls }));
       });
     }
+    if (_message.type === "reset") {
+      Object.keys(rolls).forEach((number) => {
+        rolls[number] = 0;
+      });
+      Object.values(clients).forEach((clientConnection) => {
+        clientConnection.sendUTF(JSON.stringify({ type: "roll", rolls }));
+      });
+    }
   });
 
   connection.on("close", function (reasonCode, description) {
