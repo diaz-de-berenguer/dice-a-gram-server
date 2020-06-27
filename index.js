@@ -1,13 +1,4 @@
-// const webSocketsServerPort = 8000;
-// const webSocketServer = require("websocket").server;
 const http = require("http");
-// // Spinning the http server and the websocket server.
-// const server = http.createServer();
-// server.listen(webSocketsServerPort);
-// const wsServer = new webSocketServer({
-//   httpServer: server,
-// });
-
 const express = require("express");
 const { Server } = require("ws");
 
@@ -18,7 +9,6 @@ const server = http.createServer(app);
 
 const wss = new Server({ server });
 
-// const clients = {};
 const rolls = {
   1: 0,
   2: 0,
@@ -33,32 +23,22 @@ const rolls = {
   11: 0,
   12: 0,
 };
-
-// // This code generates unique userid for everyuser.
-// const getUniqueID = () => {
-//   const s4 = () =>
-//     Math.floor((1 + Math.random()) * 0x10000)
-//       .toString(16)
-//       .substring(1);
-//   return s4() + s4() + "-" + s4();
-// };
+let rollLog = [];
 
 wss.on("connection", function (connection) {
-  // const userID = getUniqueID();
   console.log(
     new Date() +
       " Recieved a new connection from origin " +
       Object.keys(connection) +
       "."
   );
-  connection.send(JSON.stringify({ type: "roll", rolls }));
-  // // You can rewrite this part of the code to accept only the requests from allowed origin
-  // const connection = request.accept(null, request.origin);
-  // connection.sendUTF(JSON.stringify({ type: "roll", rolls }));
-  // clients[userID] = connection;
-  // console.log(
-  //   "connected: " + userID + " in " + Object.getOwnPropertyNames(clients)
-  // );
+  connection.send(
+    JSON.stringify({
+      type: "roll",
+      rolls,
+      lastRoll: rollLog[rollLog.length - 1],
+    })
+  );
 
   connection.on("message", (message) => {
     console.log("gotta message", message);
@@ -67,23 +47,26 @@ wss.on("connection", function (connection) {
       const { number } = _message;
       const currentValue = rolls[number];
       rolls[number] = currentValue + 1;
-      // Object.values(clients).forEach((clientConnection) => {
-      //   clientConnection.sendUTF(JSON.stringify({ type: "roll", rolls }));
-      // });
-      // wss.clients.forEach((client) => {
-      //   client.send(JSON.stringify({ type: "roll", rolls }));
-      // });
+      rollLog.push(number);
     }
     if (_message.type === "reset") {
       Object.keys(rolls).forEach((number) => {
         rolls[number] = 0;
       });
-      // Object.values(clients).forEach((clientConnection) => {
-      //   clientConnection.sendUTF(JSON.stringify({ type: "roll", rolls }));
-      // });
+      rollLog = [];
     }
+    if (_message.type === "undo") {
+      if (rollLog.length > 0) {
+        const number = rollLog.pop();
+        const currentValue = rolls[number];
+        rolls[number] = currentValue - 1;
+      }
+    }
+    const lastRoll = rollLog[rollLog.length - 1];
     wss.clients.forEach((client) => {
-      client.send(JSON.stringify({ type: "roll", rolls }));
+      console.log("rollLog", rollLog);
+      console.log("sending:", { lastRoll });
+      client.send(JSON.stringify({ type: "roll", rolls, lastRoll }));
     });
   });
 
