@@ -62,12 +62,18 @@ wss.on("connection", function (connection) {
         rolls[number] = currentValue - 1;
       }
     }
-    const lastRoll = rollLog[rollLog.length - 1];
-    wss.clients.forEach((client) => {
-      console.log("rollLog", rollLog);
-      console.log("sending:", { lastRoll });
-      client.send(JSON.stringify({ type: "roll", rolls, lastRoll }));
-    });
+    if (_message.type === "__ping__") {
+      connection.send(
+        JSON.stringify({
+          type: "__pong__",
+        })
+      );
+    } else {
+      const lastRoll = rollLog[rollLog.length - 1];
+      wss.clients.forEach((client) => {
+        client.send(JSON.stringify({ type: "roll", rolls, lastRoll }));
+      });
+    }
   });
 
   connection.on("close", function (reasonCode, description) {
