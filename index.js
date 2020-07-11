@@ -1,6 +1,7 @@
 const http = require("http");
 const express = require("express");
 const { Server } = require("ws");
+// const { Client } = require("pg");
 
 const PORT = process.env.PORT || 8000;
 const app = express();
@@ -9,8 +10,18 @@ const server = http.createServer(app);
 
 const wss = new Server({ server });
 
+// const client = new Client({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: {
+//     rejectUnauthorized: false,
+//   },
+// });
+// client.connect();
+
+const getRollCount = (rolls) =>
+  Object.values(rolls).reduce((prev, roll) => prev + roll, 0);
+
 const rolls = {
-  1: 0,
   2: 0,
   3: 0,
   4: 0,
@@ -24,6 +35,7 @@ const rolls = {
   12: 0,
 };
 let rollLog = [];
+let players = [];
 
 wss.on("connection", function (connection) {
   console.log(
@@ -34,9 +46,11 @@ wss.on("connection", function (connection) {
   );
   connection.send(
     JSON.stringify({
-      type: "roll",
+      type: "data",
       rolls,
       lastRoll: rollLog[rollLog.length - 1],
+      rollCount: getRollCount(rolls),
+      players,
     })
   );
 
@@ -54,6 +68,7 @@ wss.on("connection", function (connection) {
         rolls[number] = 0;
       });
       rollLog = [];
+      players = [];
     }
     if (_message.type === "undo") {
       if (rollLog.length > 0) {
@@ -61,6 +76,10 @@ wss.on("connection", function (connection) {
         const currentValue = rolls[number];
         rolls[number] = currentValue - 1;
       }
+    }
+    if (_message.type === "addPlayer") {
+      const { player } = _message;
+      players.push(player);
     }
     if (_message.type === "__ping__") {
       connection.send(
@@ -71,7 +90,15 @@ wss.on("connection", function (connection) {
     } else {
       const lastRoll = rollLog[rollLog.length - 1];
       wss.clients.forEach((client) => {
-        client.send(JSON.stringify({ type: "roll", rolls, lastRoll }));
+        client.send(
+          JSON.stringify({
+            type: "data",
+            rolls,
+            lastRoll,
+            players,
+            rollCount: getRollCount(rolls),
+          })
+        );
       });
     }
   });
